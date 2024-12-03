@@ -72,6 +72,7 @@ class NodeHttpServer {
     // app.use(Express.static(this.mediaroot));
     // 기존 express.static을 커스텀 핸들러로 대체
     app.use((req, res, next) => {
+      const uploadFilePath = path.join(this.mediaroot, req.path);    
       Fs.access(uploadFilePath, Fs.constants.F_OK, (err) => {
         if (err) {
           console.log(`File not found: ${uploadFilePath}`);
