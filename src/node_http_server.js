@@ -24,81 +24,14 @@ const context = require('./node_core_ctx');
 const streamsRoute = require('./api/routes/streams');
 const serverRoute = require('./api/routes/server');
 const relayRoute = require('./api/routes/relay');
-const { createS3Client ,uploadFileToS3 } = require('./node_storage_upload');
 const dotenv = require('./node_flv_session');
-const chokidar = require('chokidar');
 
-
-class ObjectStorageUploader {
-  constructor(mediaroot, bucketName) {
-    this.mediaroot = mediaroot;
-    this.bucketName = bucketName;
-
-    // chokidar로 .ts 파일 감지
-    console.log(this.mediaroot);
-    this.watcher = chokidar.watch(`${this.mediaroot}/`, {
-      persistent: true,
-      ignoreInitial: true, // 초기 파일 스캔 무시
-      awaitWriteFinish: {
-        stabilityThreshold: 2000, // 파일 작성 완료 대기 시간 (ms)
-        pollInterval: 100, // 파일 작성 확인 주기
-      },
-    });
-
-    this.watcher.on('add', (filePath) => {
-      this.handleFileAdd(filePath);
-    });
-  }
-
-  async handleFileAdd(filePath) {
-    try {
-      const relativePath = path.relative(this.mediaroot, filePath);
-      const destPath = relativePath.replace(/^\/+/, ''); // 경로 조정
-      const reqPath = destPath.split('/');
-      const streamKey = reqPath[1];
-      const sessionKey = context.streamSessions.get(streamKey);
-      reqPath[1] = sessionKey;
-      const uploadKey = reqPath.join('/');
-      console.log('upload path: ', uploadKey);
-      console.log(destPath, reqPath, streamKey, sessionKey);
-
-      console.log(`Detected new .ts file: ${filePath}`);
-
-      // Object Storage에 업로드
-      await uploadFileToS3(this.bucketName, uploadKey, filePath);
-      console.log(`File uploaded to Object Storage: ${uploadKey}`);
-
-      // 썸네일 업로드
-      const thumbnailPath = filePath.split('/').slice(0, -1).join('/') + '/thumbnail.png';
-      const thumbnailStoragePath = uploadKey.split('/').slice(0, -1).join('/') + '/thumbnail.png';
-      if (Fs.existsSync(thumbnailPath)) {
-        await uploadFileToS3(this.bucketName, thumbnailStoragePath, thumbnailPath);
-        console.log(`Thumbnail uploaded to Object Storage: ${thumbnailStoragePath}`);
-      }
-      // m3u8 업로드
-      const m3u8Path = filePath.split('/').slice(0, -1).join('/') + '/index.m3u8';
-      const m3u8StoragePath = uploadKey.split('/').slice(0, -1).join('/') + '/index.m3u8';
-      if (Fs.existsSync(m3u8Path)) {
-        await uploadFileToS3(this.bucketName, m3u8StoragePath, m3u8Path);
-        console.log(`m3u8 uploaded to Object Storage: ${m3u8Path}`);
-      }
-    } catch (error) {
-      Logger.error(`Error uploading file to Object Storage: ${error.message}`);
-    }
-  }
-
-  close() {
-    this.watcher.close();
-  }
-}
 
 class NodeHttpServer {
   constructor(config) {
     this.port = config.http.port || HTTP_PORT;
     this.mediaroot = config.http.mediaroot || HTTP_MEDIAROOT;
     this.config = config;
-
-    this.objectStorageUploader = new ObjectStorageUploader(this.mediaroot, process.env.OBJECT_STORAGE_BUCKET_NAME);
 
     let app = H2EBridge(Express);
     app.use(bodyParser.json());
@@ -266,7 +199,6 @@ class NodeHttpServer {
     if (this.httpsServer) {
       this.httpsServer.close();
     }
-    this.objectStorageUploader.close();
     context.sessions.forEach((session, id) => {
       if (session instanceof NodeFlvSession) {
         session.req.destroy();

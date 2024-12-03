@@ -3,18 +3,85 @@
 //  illuspas[a]gmail.com
 //  Copyright (c) 2018 Nodemedia. All rights reserved.
 //
+const { uploadFileToS3 } = require('./node_storage_upload');
 const Logger = require('./node_core_logger');
-const { exec } = require('child_process');
 const EventEmitter = require('events');
 const { spawn } = require('child_process');
 const dateFormat = require('dateformat');
 const mkdirp = require('mkdirp');
 const fs = require('fs');
+const Fs = require('fs');
 const path = require('path');
+const chokidar = require('chokidar');
+const context = require('./node_core_ctx');
 
 const isHlsFile = (filename) => filename.endsWith('.ts') || filename.endsWith('.m3u8')
 const isTemFiles = (filename) => filename.endsWith('.tmp')
 const isDashFile = (filename) => filename.endsWith('.mpd') || filename.endsWith('.m4s')
+
+
+class ObjectStorageUploader {
+  constructor(mediaroot, bucketName) {
+    this.mediaroot = mediaroot;
+    this.bucketName = bucketName;
+
+    // chokidar로 .ts 파일 감지
+    console.log("this mediaroot", this.mediaroot);
+    this.watcher = chokidar.watch(`${this.mediaroot}/`, {
+      persistent: true,
+      ignoreInitial: true, // 초기 파일 스캔 무시
+      awaitWriteFinish: {
+        stabilityThreshold: 2000, // 파일 작성 완료 대기 시간 (ms)
+        pollInterval: 100, // 파일 작성 확인 주기
+      },
+    });
+
+    this.watcher.on('add', (filePath) => {
+      this.handleFileAdd(filePath);
+    });
+  }
+
+  async handleFileAdd(filePath) {
+    try {
+      console.log("Find File!!!: ", filePath);
+      const destPath = filePath.replace(/^\/+/, ''); // 경로 조정
+      const reqPath = destPath.split('/').slice(-3);
+      const streamKey = reqPath[1];
+      const sessionKey = context.streamSessions.get(streamKey);
+      reqPath[1] = sessionKey;
+      const uploadKey = reqPath.join('/');
+      console.log('upload path: ', uploadKey);
+      console.log(destPath, reqPath, streamKey, sessionKey);
+
+      console.log(`Detected new .ts file: ${filePath}`);
+
+      // Object Storage에 업로드
+      await uploadFileToS3(this.bucketName, uploadKey, filePath);
+      console.log(`File uploaded to Object Storage: ${uploadKey}`);
+
+      // 썸네일 업로드
+      const thumbnailPath = filePath.split('/').slice(0, -1).join('/') + '/thumbnail.png';
+      const thumbnailStoragePath = uploadKey.split('/').slice(0, -1).join('/') + '/thumbnail.png';
+      if (Fs.existsSync(thumbnailPath)) {
+        await uploadFileToS3(this.bucketName, thumbnailStoragePath, thumbnailPath);
+        console.log(`Thumbnail uploaded to Object Storage: ${thumbnailStoragePath}`);
+      }
+      // m3u8 업로드
+      const m3u8Path = filePath.split('/').slice(0, -1).join('/') + '/index.m3u8';
+      const m3u8StoragePath = uploadKey.split('/').slice(0, -1).join('/') + '/index.m3u8';
+      if (Fs.existsSync(m3u8Path)) {
+        await uploadFileToS3(this.bucketName, m3u8StoragePath, m3u8Path);
+        console.log(`m3u8 uploaded to Object Storage: ${m3u8Path}`);
+      }
+    } catch (error) {
+      Logger.error(`Error uploading file to Object Storage: ${error.message}`);
+    }
+  }
+
+  close() {
+    this.watcher.close();
+  }
+}
 
 class NodeTransSession extends EventEmitter {
   constructor(conf) {
@@ -78,8 +145,11 @@ class NodeTransSession extends EventEmitter {
     Array.prototype.push.apply(argv, this.conf.acParam);
     Array.prototype.push.apply(argv, ['-f', 'tee', '-map', '0:a?', '-map', '0:v?', mapStr]);
     argv = argv.filter((n) => { return n; });
-    this.ffmpeg_exec = spawn(this.conf.ffmpeg, argv);
 
+    console.log("ouPath", ouPath);
+    this.objectStorageUploader = new ObjectStorageUploader(ouPath, process.env.OBJECT_STORAGE_BUCKET_NAME);
+
+    this.ffmpeg_exec = spawn(this.conf.ffmpeg, argv);
     this.ffmpeg_exec.on('error', (e) => {
       Logger.ffdebug(e);
     });
@@ -89,6 +159,7 @@ class NodeTransSession extends EventEmitter {
     });
 
     this.ffmpeg_exec.stdout.on('end', (data) => {
+      this.objectStorageUploader.close()
       console.log('stdout end');
     });
 
@@ -184,5 +255,6 @@ class NodeTransSession extends EventEmitter {
     });
   }
 }
+
 
 module.exports = NodeTransSession;
