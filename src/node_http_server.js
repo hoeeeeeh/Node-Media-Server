@@ -54,18 +54,33 @@ class ObjectStorageUploader {
     try {
       const relativePath = path.relative(this.mediaroot, filePath);
       const destPath = relativePath.replace(/^\/+/, ''); // 경로 조정
+      const reqPath = destPath.split('/');
+      const streamKey = reqPath[1];
+      const sessionKey = context.streamSessions.get(streamKey);
+      reqPath[1] = sessionKey;
+      const uploadKey = reqPath.join('/');
+      console.log('upload path: ', uploadKey);
+      console.log(destPath, reqPath, streamKey, sessionKey);
+
       console.log(`Detected new .ts file: ${filePath}`);
 
       // Object Storage에 업로드
-      await uploadFileToS3(this.bucketName, destPath, filePath);
-      console.log(`File uploaded to Object Storage: ${destPath}`);
+      await uploadFileToS3(this.bucketName, uploadKey, filePath);
+      console.log(`File uploaded to Object Storage: ${uploadKey}`);
 
       // 썸네일 업로드
       const thumbnailPath = filePath.split('/').slice(0, -1).join('/') + '/thumbnail.png';
-      const thumbnailStoragePath = destPath.split('/').slice(0, -1).join('/') + '/thumbnail.png';
+      const thumbnailStoragePath = uploadKey.split('/').slice(0, -1).join('/') + '/thumbnail.png';
       if (Fs.existsSync(thumbnailPath)) {
         await uploadFileToS3(this.bucketName, thumbnailStoragePath, thumbnailPath);
         console.log(`Thumbnail uploaded to Object Storage: ${thumbnailStoragePath}`);
+      }
+      // m3u8 업로드
+      const m3u8Path = filePath.split('/').slice(0, -1).join('/') + '/index.m3u8';
+      const m3u8StoragePath = uploadKey.split('/').slice(0, -1).join('/') + '/index.m3u8';
+      if (Fs.existsSync(m3u8Path)) {
+        await uploadFileToS3(this.bucketName, m3u8StoragePath, m3u8Path);
+        console.log(`m3u8 uploaded to Object Storage: ${m3u8Path}`);
       }
     } catch (error) {
       Logger.error(`Error uploading file to Object Storage: ${error.message}`);
