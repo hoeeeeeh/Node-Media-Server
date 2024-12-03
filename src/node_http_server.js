@@ -72,39 +72,14 @@ class NodeHttpServer {
     // app.use(Express.static(this.mediaroot));
     // 기존 express.static을 커스텀 핸들러로 대체
     app.use((req, res, next) => {
-      // Object Storage 업로드 로직
-      const uploadFilePath = path.join(this.mediaroot, req.path);
-
-      // Fs.access(uploadFilePath, Fs.constants.F_OK, (err) => {
-      //   const destPath = req.path.replace(/^\/+/, ''); // /live/web22 같이 들어왔을 때, live/web22 로 경로 바꿔주기 위해서 replace
-      //   const reqPath = destPath.split('/');
-      //   const streamKey = reqPath[1];
-      //   const sessionKey = context.streamSessions.get(streamKey);
-      //   reqPath[1] = sessionKey;
-      //   const uploadKey = reqPath.join('/');
-      //   console.log('upload path: ', uploadKey);
-      //   console.log(destPath, reqPath, streamKey, sessionKey);
-
-      //   const tsRegex = /\.ts$/;
-      //   if (err) {
-      //     console.log(`File not found: ${uploadFilePath}`);
-      //     res.status(302).send('File is not loaded');
-      //   } else {
-      //     console.log('object storage upload');
-      //     uploadFileToS3(process.env.OBJECT_STORAGE_BUCKET_NAME, uploadKey, uploadFilePath).then((r) => {
-      //       console.log('upload completed');
-      //     });
-      //     if (destPath.match(tsRegex)) {
-      //       const thumbnailPath = uploadFilePath.split('/').slice(0, -1).join('/');
-      //       const thumbnailStoragePath = uploadKey.split('/').slice(0, -1).join('/') + '/thumbnail.png';
-      //       uploadFileToS3(process.env.OBJECT_STORAGE_BUCKET_NAME, thumbnailStoragePath, `${thumbnailPath}/thumbnail.png`).then((r) => {
-      //         console.log('thumbnail upload completed');
-      //       });  
-      //     }
-      //     console.log(`uploadFilePath : ${uploadFilePath}`);
-      //     res.sendFile(uploadFilePath);
-      //   }
-      // });
+      Fs.access(uploadFilePath, Fs.constants.F_OK, (err) => {
+        if (err) {
+          console.log(`File not found: ${uploadFilePath}`);
+          res.status(302).send('File is not loaded');
+        } else {
+          res.sendFile(uploadFilePath);
+        }
+      });
     });
 
 
