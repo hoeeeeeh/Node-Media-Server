@@ -44,6 +44,9 @@ class ObjectStorageUploader {
   async handleFileAdd(filePath) {
     try {
       console.log("Find File!!!: ", filePath);
+      if (!filePath.endsWith(".ts")) {
+        return;
+      }
       const destPath = filePath.replace(/^\/+/, ''); // 경로 조정
       const reqPath = destPath.split('/').slice(-3);
       const streamKey = reqPath[1];
