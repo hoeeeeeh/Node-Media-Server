@@ -30,6 +30,7 @@
     "basic-auth-connect": "^1.0.0",
     "body-parser": "1.20.3",
     "chalk": "^4.1.0",
+    "chokidar": "^4.0.1",
     "dateformat": "^4.6.3",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
