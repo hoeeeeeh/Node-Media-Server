@@ -224,7 +224,7 @@ class NodeRtmpSession {
       context.nodeEvent.emit('doneConnect', this.id, this.connectCmdObj);
 
       context.sessions.delete(this.id);
-
+      
       this.postStreamEnd();
       this.socket.destroy();
 
@@ -1146,7 +1146,6 @@ class NodeRtmpSession {
       const streamKey = this.publishStreamPath.split('/').pop();
       this.streamKey = streamKey.trim();
       await this.getSIDusingStreamKey();
-      //
 
       Logger.log(`[rtmp publish] New stream. id=${this.id} streamPath=${this.publishStreamPath} streamkey=${streamKey} streamId=${this.publishStreamId}`);
       context.publishers.set(this.publishStreamPath, this.id);
@@ -1187,9 +1186,13 @@ class NodeRtmpSession {
       console.error('Error:', error);
     });
   }
-
+  
   postStreamEnd(){
     context.streamSessions.delete(this.streamKey);
+    console.log(this.streamKey);
+    if (!this.streamKey) {
+      return;
+    }
 
     fetch(`${API_SERVER_URL}/host/session?streamKey=${this.streamKey}`, {
       method: 'DELETE',
