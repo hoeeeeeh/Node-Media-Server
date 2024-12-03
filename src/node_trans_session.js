@@ -105,6 +105,7 @@ class NodeTransSession extends EventEmitter {
   startThumbnailCapture(inPath, ouPath) {
     const thumbnailIntervalMs = 10000; // 10 seconds
     const thumbnailPath = `${ouPath}/thumbnail.png`;
+    this.generateThumbnail(inPath, thumbnailPath); // 연결 시 한번은 썸네일을 추출하도록 설정
     this.thumbnailInterval = setInterval(() => {
       this.generateThumbnail(inPath, thumbnailPath);
     }, thumbnailIntervalMs);
