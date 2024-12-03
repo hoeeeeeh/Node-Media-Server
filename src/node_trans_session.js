@@ -72,6 +72,7 @@ class NodeTransSession extends EventEmitter {
     mkdirp.sync(ouPath);
     let argv = ['-y', '-i', inPath];
     Array.prototype.push.apply(argv, ['-c:v', vc]);
+    Array.prototype.push.apply(argv, ['-preset', 'ultrafast']); // -preset ultrafast 추가
     Array.prototype.push.apply(argv, this.conf.vcParam);
     Array.prototype.push.apply(argv, ['-c:a', ac]);
     Array.prototype.push.apply(argv, this.conf.acParam);
@@ -85,6 +86,14 @@ class NodeTransSession extends EventEmitter {
 
     this.ffmpeg_exec.stdout.on('data', (data) => {
       Logger.ffdebug(`FF_LOG:${data}`);
+    });
+
+    this.ffmpeg_exec.stdout.on('end', (data) => {
+      console.log('stdout end');
+    });
+
+    this.ffmpeg_exec.stderr.on('end', (data) => {
+      console.log('stderr end');
     });
 
     this.ffmpeg_exec.stderr.on('data', (data) => {

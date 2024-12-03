@@ -5,8 +5,8 @@
 //
 const EventEmitter = require('events');
 
-let sessions = new Map();let streamSessions = new Map();
-
+let sessions = new Map();
+let streamSessions = new Map();
 let publishers = new Map();
 let idlePlayers = new Set();
 let nodeEvent = new EventEmitter();

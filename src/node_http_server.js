@@ -24,7 +24,7 @@ const context = require('./node_core_ctx');
 const streamsRoute = require('./api/routes/streams');
 const serverRoute = require('./api/routes/server');
 const relayRoute = require('./api/routes/relay');
-const { uploadFileToS3 } = require('./node_storage_upload');
+const { createS3Client ,uploadFileToS3 } = require('./node_storage_upload');
 const dotenv = require('./node_flv_session');
 const chokidar = require('chokidar');
 
@@ -84,7 +84,7 @@ class NodeHttpServer {
     this.config = config;
 
     this.objectStorageUploader = new ObjectStorageUploader(this.mediaroot, process.env.OBJECT_STORAGE_BUCKET_NAME);
-    
+
     let app = H2EBridge(Express);
     app.use(bodyParser.json());
 

@@ -224,8 +224,10 @@ class NodeRtmpSession {
       context.nodeEvent.emit('doneConnect', this.id, this.connectCmdObj);
 
       context.sessions.delete(this.id);
+      
       this.postStreamEnd();
       this.socket.destroy();
+
     }
   }
 
@@ -1191,6 +1193,7 @@ class NodeRtmpSession {
     if (!this.streamKey) {
       return;
     }
+
     fetch(`${API_SERVER_URL}/host/session?streamKey=${this.streamKey}`, {
       method: 'DELETE',
       headers: {
@@ -1203,6 +1206,7 @@ class NodeRtmpSession {
       }
       return response.json();
     }).then((data) => {
+
     }).catch((error) => {
       console.error('Error:', error);
     });
